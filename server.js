@@ -1,3 +1,10 @@
+app.get("/", (req, res) => {
+  res.send(`
+    <h2>🚀 AdSenze is Live</h2>
+    <p>Telegram Ads Bot is running successfully.</p>
+    <p><a href="/login.html">Go to Admin Panel</a></p>
+  `);
+});
 require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
