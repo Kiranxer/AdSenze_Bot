@@ -1,0 +1,9 @@
+<h2>Admin Login</h2>
+<input id="p" type="password">
+<button onclick="go()">Login</button>
+<script>
+function go() {
+  fetch("/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:p.value})})
+  .then(r=>r.ok?location.href="/dashboard.html":alert("Wrong password"))
+}
+</script>
