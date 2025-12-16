@@ -4,71 +4,118 @@ const { v4: uuidv4 } = require("uuid");
 const Ad = require("./models/Ad");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
+
+// Admins
 const ADMINS = process.env.ADMIN_IDS.split(",").map(Number);
 
-const packages = {
-  p99: { stars: 99, hours: 6, pin: false },
-  p199: { stars: 199, hours: 16, pin: false },
-  p249: { stars: 249, hours: 24, pin: false },
-  p299: { stars: 299, hours: 24, pin: true }
+// Packages
+const PACKAGES = {
+  99: { hours: 6, pin: false },
+  199: { hours: 16, pin: false },
+  249: { hours: 24, pin: false },
+  299: { hours: 24, pin: true }
 };
 
-bot.start(ctx => {
-  ctx.reply(
-    "📢 Advertise in our group using ⭐ Telegram Stars",
+// In-memory user state (simple & safe)
+const userState = new Map();
+
+/* ---------------- START ---------------- */
+
+bot.start(async (ctx) => {
+  await ctx.reply(
+    "📢 Advertise in our group using ⭐ Telegram Stars\n\nChoose a package to continue.",
     Markup.inlineKeyboard([
-      [Markup.button.callback("📣 Advertise Now", "START_AD")]
+      [Markup.button.callback("📣 Advertise Now", "OPEN_PACKAGES")]
     ])
   );
 });
 
-bot.action("START_AD", ctx => {
-  ctx.reply(
-    "Choose your package:",
+/* ---------------- PACKAGES MENU ---------------- */
+
+bot.action("OPEN_PACKAGES", async (ctx) => {
+  await ctx.editMessageText(
+    "⭐ Choose your advertising package:",
     Markup.inlineKeyboard([
-      [Markup.button.pay("99⭐ – 6 Hours", "p99")],
-      [Markup.button.pay("199⭐ – 16 Hours", "p199")],
-      [Markup.button.pay("249⭐ – 24 Hours", "p249")],
-      [Markup.button.pay("299⭐ – 24 Hours + PIN", "p299")]
+      [Markup.button.callback("99⭐ – 6 Hours", "BUY_99")],
+      [Markup.button.callback("199⭐ – 16 Hours", "BUY_199")],
+      [Markup.button.callback("249⭐ – 24 Hours", "BUY_249")],
+      [Markup.button.callback("299⭐ – 24 Hours + 📌 Pin", "BUY_299")]
     ])
   );
 });
 
-bot.on("pre_checkout_query", ctx => ctx.answerPreCheckoutQuery(true));
+/* ---------------- SEND INVOICE ---------------- */
 
-bot.on("successful_payment", ctx => {
-  const payload = ctx.message.successful_payment.invoice_payload;
-  ctx.session = packages[payload];
-  ctx.reply("✅ Payment successful!\n\nSend your advertisement now.");
+bot.action(/BUY_(\d+)/, async (ctx) => {
+  const stars = Number(ctx.match[1]);
+  const pack = PACKAGES[stars];
+  if (!pack) return;
+
+  userState.set(ctx.from.id, pack);
+
+  await ctx.replyWithInvoice({
+    title: "AdSenze Group Advertisement",
+    description: `${stars}⭐ advertisement for ${pack.hours} hours${pack.pin ? " with PIN" : ""}`,
+    payload: `ADSENZE_${stars}_${Date.now()}`,
+    provider_token: "", // MUST be empty for Stars
+    currency: "XTR",
+    prices: [{ label: `${stars} Stars`, amount: stars }]
+  });
 });
 
-bot.on(["text", "photo", "video"], async ctx => {
-  if (!ctx.session) return;
+/* ---------------- PRE-CHECKOUT ---------------- */
+
+bot.on("pre_checkout_query", async (ctx) => {
+  await ctx.answerPreCheckoutQuery(true);
+});
+
+/* ---------------- PAYMENT SUCCESS ---------------- */
+
+bot.on("successful_payment", async (ctx) => {
+  const pack = userState.get(ctx.from.id);
+  if (!pack) return;
+
+  await ctx.reply(
+    "✅ Payment successful!\n\n📨 Now send your advertisement.\n\nYou can send:\n• Text\n• Image\n• Video"
+  );
+});
+
+/* ---------------- RECEIVE AD ---------------- */
+
+bot.on(["text", "photo", "video"], async (ctx) => {
+  const pack = userState.get(ctx.from.id);
+  if (!pack) return;
 
   const ad = await Ad.create({
     adId: uuidv4(),
     userId: ctx.from.id,
     content: ctx.message,
-    hours: ctx.session.hours,
-    pin: ctx.session.pin
+    hours: pack.hours,
+    pin: pack.pin,
+    status: "pending"
   });
 
-  ADMINS.forEach(id => {
-    bot.telegram.sendMessage(
-      id,
-      `🆕 New Ad Request\n\nAd ID: ${ad.adId}\nHours: ${ad.hours}\nPin: ${ad.pin}`,
+  // Notify admins
+  for (const admin of ADMINS) {
+    await bot.telegram.sendMessage(
+      admin,
+      `🆕 New Ad Request\n\n🆔 ID: ${ad.adId}\n👤 User: ${ctx.from.id}\n⏳ Hours: ${ad.hours}\n📌 Pin: ${ad.pin}`,
       Markup.inlineKeyboard([
-        [Markup.button.callback("✅ Approve", `APP_${ad.adId}`)],
-        [Markup.button.callback("❌ Reject", `REJ_${ad.adId}`)]
+        [
+          Markup.button.callback("✅ Approve", `APPROVE_${ad.adId}`),
+          Markup.button.callback("❌ Reject", `REJECT_${ad.adId}`)
+        ]
       ])
     );
-  });
+  }
 
-  ctx.reply("📨 Ad submitted for admin approval.");
-  ctx.session = null;
+  await ctx.reply("📨 Your ad has been sent for admin approval.");
+  userState.delete(ctx.from.id);
 });
 
-bot.action(/APP_(.+)/, async ctx => {
+/* ---------------- ADMIN ACTIONS ---------------- */
+
+bot.action(/APPROVE_(.+)/, async (ctx) => {
   if (!ADMINS.includes(ctx.from.id)) return;
 
   const ad = await Ad.findOne({ adId: ctx.match[1] });
@@ -89,17 +136,6 @@ bot.action(/APP_(.+)/, async ctx => {
   await ad.save();
 
   setTimeout(async () => {
-    await bot.telegram.deleteMessage(process.env.GROUP_ID, ad.messageId);
-    if (ad.pin) await bot.telegram.unpinChatMessage(process.env.GROUP_ID);
-  }, ad.hours * 3600000);
-
-  ctx.reply("✅ Ad approved & posted.");
-});
-
-bot.action(/REJ_(.+)/, async ctx => {
-  if (!ADMINS.includes(ctx.from.id)) return;
-  await Ad.findOneAndUpdate({ adId: ctx.match[1] }, { status: "rejected" });
-  ctx.reply("❌ Ad rejected.");
-});
-
-module.exports = bot;
+    try {
+      await bot.telegram.deleteMessage(process.env.GROUP_ID, ad.messageId);
+      if (ad.pin) {
