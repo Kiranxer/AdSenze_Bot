@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AdSenze Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    body {
+      margin: 0;
+      font-family: "Poppins", sans-serif;
+      background: linear-gradient(135deg, #0f0f1a, #1b1030);
+      color: #fff;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      background: #12091f;
+      padding: 20px;
+      border-right: 1px solid #2a1b45;
+    }
+
+    .anime-card {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .anime-card img {
+      width: 140px;
+      border-radius: 50%;
+      border: 3px solid #ff4ecd;
+      box-shadow: 0 0 20px #ff4ecd80;
+    }
+
+    .anime-card h2 {
+      margin-top: 12px;
+      color: #ff7ad9;
+    }
+
+    .anime-card p {
+      font-size: 14px;
+      opacity: 0.8;
+    }
+
+    .nav-btn {
+      display: block;
+      width: 100%;
+      background: transparent;
+      border: 1px solid #ff4ecd;
+      color: #ff7ad9;
+      padding: 12px;
+      margin-bottom: 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .nav-btn:hover {
+      background: #ff4ecd;
+      color: #fff;
+      box-shadow: 0 0 15px #ff4ecd;
+    }
+
+    /* Main */
+    .main {
+      padding: 30px;
+      overflow-y: auto;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h1 {
+      color: #ff7ad9;
+    }
+
+    .ads {
+      margin-top: 30px;
+      display: grid;
+      gap: 20px;
+    }
+
+    .ad-card {
+      background: #170c2b;
+      border-radius: 16px;
+      padding: 20px;
+      border: 1px solid #2f1b4f;
+      box-shadow: 0 0 20px #00000050;
+      transition: 0.3s;
+    }
+
+    .ad-card:hover {
+      transform: scale(1.02);
+      box-shadow: 0 0 25px #ff4ecd50;
+    }
+
+    .ad-card p {
+      margin: 6px 0;
+      font-size: 15px;
+    }
+
+    .actions {
+      margin-top: 15px;
+    }
+
+    .actions button {
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      margin-right: 10px;
+      font-weight: bold;
+    }
+
+    .approve {
+      background: #3dffb2;
+      color: #000;
+    }
+
+    .reject {
+      background: #ff4e6a;
+      color: #fff;
+    }
+
+    .approve:hover {
+      box-shadow: 0 0 15px #3dffb2;
+    }
+
+    .reject:hover {
+      box-shadow: 0 0 15px #ff4e6a;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      opacity: 0.5;
+      font-size: 13px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="anime-card">
+        <img src="https://i.imgur.com/0y0y0y0.png" alt="Anime Girl">
+        <h2>AdSenze</h2>
+        <p>Anime Admin Assistant ✨</p>
+      </div>
+
+      <button class="nav-btn">📢 Pending Ads</button>
+      <button class="nav-btn">📊 Analytics (Soon)</button>
+      <button class="nav-btn">⚙ Settings (Soon)</button>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+      <div class="header">
+        <h1>Pending Advertisements</h1>
+      </div>
+
+      <div class="ads" id="ads">
+        <p>Loading ads…</p>
+      </div>
+
+      <footer>
+        🌸 Powered by AdSenze · Anime UI
+      </footer>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>
