@@ -1,9 +1,173 @@
-<h2>Admin Login</h2>
-<input id="p" type="password">
-<button onclick="go()">Login</button>
-<script>
-function go() {
-  fetch("/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:p.value})})
-  .then(r=>r.ok?location.href="/dashboard.html":alert("Wrong password"))
-}
-</script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AdSenze Admin Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: "Poppins", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      background: linear-gradient(135deg, #0f0f1a, #1b1030);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+      overflow: hidden;
+    }
+
+    /* Floating glow */
+    body::before {
+      content: "";
+      position: absolute;
+      width: 400px;
+      height: 400px;
+      background: #ff4ecd;
+      filter: blur(140px);
+      opacity: 0.4;
+      animation: float 8s infinite alternate;
+    }
+
+    @keyframes float {
+      from { transform: translate(-100px, -50px); }
+      to { transform: translate(100px, 80px); }
+    }
+
+    .card {
+      position: relative;
+      background: rgba(23, 12, 43, 0.95);
+      border-radius: 22px;
+      padding: 40px 30px;
+      width: 340px;
+      text-align: center;
+      box-shadow: 0 0 30px #00000080;
+      z-index: 1;
+    }
+
+    .anime-avatar {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      margin: -90px auto 10px;
+      border: 4px solid #ff4ecd;
+      box-shadow: 0 0 25px #ff4ecd90;
+      background: url("https://i.imgur.com/Q9Lg6nP.png") center/cover no-repeat;
+    }
+
+    h1 {
+      margin: 10px 0 4px;
+      color: #ff7ad9;
+    }
+
+    p {
+      font-size: 14px;
+      opacity: 0.75;
+      margin-bottom: 25px;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px;
+      border-radius: 14px;
+      border: none;
+      outline: none;
+      margin-bottom: 15px;
+      background: #2a1b45;
+      color: #fff;
+      font-size: 15px;
+      text-align: center;
+    }
+
+    input::placeholder {
+      color: #cfa4ff;
+      opacity: 0.6;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      border-radius: 14px;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      background: linear-gradient(135deg, #ff4ecd, #b44cff);
+      color: #fff;
+      transition: 0.3s;
+      box-shadow: 0 0 18px #ff4ecd80;
+    }
+
+    button:hover {
+      transform: scale(1.04);
+      box-shadow: 0 0 30px #ff4ecd;
+    }
+
+    .status {
+      margin-top: 14px;
+      font-size: 14px;
+      height: 18px;
+    }
+
+    footer {
+      margin-top: 18px;
+      font-size: 12px;
+      opacity: 0.5;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="card">
+    <div class="anime-avatar"></div>
+
+    <h1>AdSenze</h1>
+    <p>Anime Admin Assistant ✨</p>
+
+    <input id="password" type="password" placeholder="Admin Password" />
+    <button onclick="login()">Login</button>
+
+    <div class="status" id="status"></div>
+
+    <footer>🌸 Powered by AdSenze</footer>
+  </div>
+
+  <script>
+    function login() {
+      const password = document.getElementById("password").value;
+      const status = document.getElementById("status");
+
+      status.textContent = "✨ Verifying...";
+
+      fetch("/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password })
+      })
+      .then(res => {
+        if (res.ok) {
+          status.textContent = "✅ Welcome back!";
+          setTimeout(() => {
+            window.location.href = "/dashboard.html";
+          }, 700);
+        } else {
+          status.textContent = "❌ Wrong password";
+        }
+      })
+      .catch(() => {
+        status.textContent = "⚠️ Server error";
+      });
+    }
+  </script>
+
+</body>
+</html>
