@@ -5,10 +5,9 @@ const Ad = require("./models/Ad");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-// Admin IDs
+// ===== CONFIG =====
 const ADMINS = process.env.ADMIN_IDS.split(",").map(Number);
 
-// Ad packages
 const PACKAGES = {
   99: { hours: 6, pin: false },
   199: { hours: 16, pin: false },
@@ -16,12 +15,11 @@ const PACKAGES = {
   299: { hours: 24, pin: true }
 };
 
-// In-memory state
-const userPackage = new Map(); // userId → package
-const adDraft = new Map();     // userId → message
+// ===== STATE =====
+const userPackage = new Map(); // userId -> package
+const adDraft = new Map();     // userId -> message
 
-/* ───────── START ───────── */
-
+// ===== START =====
 bot.start(async (ctx) => {
   await ctx.reply(
     "📢 Advertise in our group using ⭐ Telegram Stars",
@@ -31,8 +29,7 @@ bot.start(async (ctx) => {
   );
 });
 
-/* ───────── PACKAGES ───────── */
-
+// ===== PACKAGES =====
 bot.action("OPEN_PACKAGES", async (ctx) => {
   await ctx.editMessageText(
     "⭐ Choose your advertising package:",
@@ -45,8 +42,7 @@ bot.action("OPEN_PACKAGES", async (ctx) => {
   );
 });
 
-/* ───────── INVOICE ───────── */
-
+// ===== INVOICE =====
 bot.action(/BUY_(\d+)/, async (ctx) => {
   const stars = Number(ctx.match[1]);
   const pack = PACKAGES[stars];
@@ -66,16 +62,14 @@ bot.action(/BUY_(\d+)/, async (ctx) => {
 
 bot.on("pre_checkout_query", (ctx) => ctx.answerPreCheckoutQuery(true));
 
-/* ───────── PAYMENT SUCCESS ───────── */
-
+// ===== PAYMENT SUCCESS =====
 bot.on("successful_payment", async (ctx) => {
   await ctx.reply(
     "✅ Payment successful!\n\n📨 Please send your advertisement now.\n\nYou can send:\n• Text\n• Image\n• Video"
   );
 });
 
-/* ───────── RECEIVE AD & PREVIEW ───────── */
-
+// ===== RECEIVE AD + PREVIEW =====
 bot.on(["text", "photo", "video"], async (ctx) => {
   const pack = userPackage.get(ctx.from.id);
   if (!pack) return;
@@ -96,14 +90,12 @@ bot.on(["text", "photo", "video"], async (ctx) => {
   );
 });
 
-/* ───────── EDIT ───────── */
-
+// ===== EDIT =====
 bot.action("EDIT_AD", async (ctx) => {
-  await ctx.reply("✏️ Okay, please send the edited advertisement.");
+  await ctx.reply("✏️ Please send the edited advertisement.");
 });
 
-/* ───────── CONFIRM & SEND TO ADMIN ───────── */
-
+// ===== CONFIRM & SEND TO ADMIN =====
 bot.action("CONFIRM_AD", async (ctx) => {
   const pack = userPackage.get(ctx.from.id);
   const content = adDraft.get(ctx.from.id);
@@ -122,7 +114,6 @@ bot.action("CONFIRM_AD", async (ctx) => {
     ? `@${ctx.from.username}`
     : "No username";
 
-  // Send to admins
   for (const admin of ADMINS) {
     await bot.telegram.sendMessage(
       admin,
@@ -134,7 +125,6 @@ bot.action("CONFIRM_AD", async (ctx) => {
       { parse_mode: "Markdown" }
     );
 
-    // Forward full ad content
     await bot.telegram.forwardMessage(
       admin,
       ctx.chat.id,
@@ -174,15 +164,12 @@ bot.action("CONFIRM_AD", async (ctx) => {
   adDraft.delete(ctx.from.id);
 });
 
-/* ───────── ADMIN APPROVE ───────── */
-
+// ===== ADMIN APPROVE =====
 bot.action(/APPROVE_(.+)/, async (ctx) => {
   if (!ADMINS.includes(ctx.from.id)) return;
 
   const ad = await Ad.findOne({ adId: ctx.match[1] });
-  if (!ad || ad.status !== "pending") {
-    return ctx.answerCbQuery("Already processed");
-  }
+  if (!ad || ad.status !== "pending") return;
 
   const sent = await bot.telegram.sendMessage(
     process.env.GROUP_ID,
@@ -201,7 +188,6 @@ bot.action(/APPROVE_(.+)/, async (ctx) => {
   ad.expireAt = new Date(Date.now() + ad.hours * 3600000);
   await ad.save();
 
-  // Auto delete
   setTimeout(async () => {
     try {
       await bot.telegram.deleteMessage(
@@ -230,84 +216,7 @@ bot.action(/APPROVE_(.+)/, async (ctx) => {
   await ctx.reply("✅ Ad approved, posted & user notified.");
 });
 
-/* ───────── ADMIN REJECT ───────── */
-
-bot.action(/REJECT_(.+)/, async (ctx) => {
-  if (!ADMINS.includes(ctx.from.id)) return;
-
-  await Ad.findOneAndUpdate(
-    { adId: ctx.match[1] },
-    { status: "rejected" }
-  );
-
-  await ctx.reply("❌ Ad rejected.");
-});
-
-module.exports = bot;});
-
-/* RECEIVE AD */
-bot.on(["text", "photo", "video"], async (ctx) => {
-  const pack = userState.get(ctx.from.id);
-  if (!pack) return;
-
-  const ad = await Ad.create({
-    adId: uuidv4(),
-    userId: ctx.from.id,
-    content: ctx.message,
-    hours: pack.hours,
-    pin: pack.pin,
-    status: "pending"
-  });
-
-  for (const admin of ADMINS) {
-    await bot.telegram.sendMessage(
-      admin,
-      `🆕 New Ad Request\n\n🆔 ${ad.adId}\n👤 User: ${ctx.from.id}\n⏳ ${ad.hours}h\n📌 Pin: ${ad.pin}`,
-      Markup.inlineKeyboard([
-        [
-          Markup.button.callback("✅ Approve", `APPROVE_${ad.adId}`),
-          Markup.button.callback("❌ Reject", `REJECT_${ad.adId}`)
-        ]
-      ])
-    );
-  }
-
-  await ctx.reply("📨 Ad sent for admin approval.");
-  userState.delete(ctx.from.id);
-});
-
-/* APPROVE */
-bot.action(/APPROVE_(.+)/, async (ctx) => {
-  if (!ADMINS.includes(ctx.from.id)) return;
-
-  const ad = await Ad.findOne({ adId: ctx.match[1] });
-  if (!ad || ad.status !== "pending") return;
-
-  const sent = await bot.telegram.sendMessage(
-    process.env.GROUP_ID,
-    ad.content.text || "📢 Advertisement"
-  );
-
-  if (ad.pin) {
-    await bot.telegram.pinChatMessage(process.env.GROUP_ID, sent.message_id);
-  }
-
-  ad.status = "approved";
-  ad.messageId = sent.message_id;
-  ad.expireAt = new Date(Date.now() + ad.hours * 3600000);
-  await ad.save();
-
-  setTimeout(async () => {
-    try {
-      await bot.telegram.deleteMessage(process.env.GROUP_ID, ad.messageId);
-      if (ad.pin) await bot.telegram.unpinChatMessage(process.env.GROUP_ID);
-    } catch {}
-  }, ad.hours * 3600000);
-
-  await ctx.reply("✅ Ad approved & posted.");
-});
-
-/* REJECT */
+// ===== ADMIN REJECT =====
 bot.action(/REJECT_(.+)/, async (ctx) => {
   if (!ADMINS.includes(ctx.from.id)) return;
 
